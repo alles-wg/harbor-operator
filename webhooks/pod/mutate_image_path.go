@@ -52,6 +52,8 @@ func (ipr *ImagePathRewriter) Handle(ctx context.Context, req admission.Request)
 
 	var allRules []rule.Rule
 
+	proj, projExist := podNS.Annotations[consts.AnnotationProject]
+
 	// check if the configmap exist
 	if cmName, ok := podNS.Annotations[consts.AnnotationImageRewriteRuleConfigMapRef]; ok { //nolint:nestif
 		cm, err := ipr.getConfigMap(ctx, cmName, podNS.Name)
@@ -99,6 +101,14 @@ func (ipr *ImagePathRewriter) Handle(ctx context.Context, req admission.Request)
 			}
 
 			allRules = rule.MergeRules(rulesFromConfigMap, rulesFromHSC)
+			if projExist {
+				allRules = rule.MergeRules(allRules, []rule.Rule{
+					{
+						RegistryRegex: "*",
+						Project:       proj,
+						ServerURL:     hsc.Spec.ServerURL,
+					}})
+			}
 		} else if _, yes := cm.Data[consts.ConfigMapKeyRules]; yes && strings.TrimSpace(cm.Data[consts.ConfigMapKeyRules]) != "" {
 			return admission.Errored(http.StatusBadRequest, errors.New("rule are defined in configMap but there is no hsc associated with it"))
 		}
@@ -118,6 +128,14 @@ func (ipr *ImagePathRewriter) Handle(ctx context.Context, req admission.Request)
 			}
 
 			allRules = rule.MergeRules(allRules, ruleFromDefaultHSC)
+			if projExist {
+				allRules = rule.MergeRules(allRules, []rule.Rule{
+					{
+						RegistryRegex: "*",
+						Project:       proj,
+						ServerURL:     defaultHSC.Spec.ServerURL,
+					}})
+			}
 		} else {
 			// it's ok to not match the default hsc
 			ipr.Log.Info("default hsc ", defaultHSC.Namespace, "/", defaultHSC.Name, " doesn't match current namespace")

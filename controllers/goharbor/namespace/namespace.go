@@ -133,6 +133,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	proj, projExist := ns.Annotations[consts.AnnotationProject]
+	_, robotExist := ns.Annotations[consts.AnnotationRobot]
 
 	if !projExist || proj == "" {
 		log.Info("annotation 'project' not set, skip reconciliation")
@@ -161,7 +162,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log.Info("created pull secret binding", "name", psb.Name)
 
 	// update namespace with updated annotation
-	if proj == "*" {
+	if proj == "*" || !robotExist {
 		log.Info("update namespace annotations", "projectName", projName, "robotID", robotID)
 		ns.Annotations[consts.AnnotationProject] = projName
 		ns.Annotations[consts.AnnotationRobot] = robotID
@@ -370,7 +371,11 @@ func (r *Reconciler) validateHarborProjectAndRobot(log logr.Logger, ns *corev1.N
 	}
 
 	if !robotExist {
-		return "", "", "", errors.New("robotID is not set")
+		robot, err := r.Harbor.CreateRobotAccount(projID)
+		if err != nil {
+			return "", "", "", fmt.Errorf("unable to create robot: %w", err)
+		}
+		return proj, projID, fmt.Sprintf("%d", robot.ID), nil
 	}
 
 	err = r.validateRobot(projID, robotID)

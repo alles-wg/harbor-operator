@@ -324,7 +324,7 @@ func (r *Reconciler) createRegSec(ctx context.Context, namespace string, registr
 
 	regSec := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      strings.RandomName("regsecret"),
+			Name:      "goharbor-ns-regsecret",
 			Namespace: namespace,
 			Annotations: map[string]string{
 				consts.AnnotationSecOwner: defaultOwner,
