@@ -12,10 +12,6 @@ type PullSecretBindingSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// RobotID points to the robot account id used for secret binding
-	// +kubebuilder:validation:Required
-	RobotID string `json:"robotId"`
-
 	// ProjectID points to the project associated with the secret binding
 	// +kubebuilder:validation:Required
 	ProjectID string `json:"projectId"`

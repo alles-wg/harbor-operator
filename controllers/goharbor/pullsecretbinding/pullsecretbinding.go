@@ -126,7 +126,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.
 		}
 	}()
 
-	projID, robotID := parseIntID(bd.Spec.ProjectID), parseIntID(bd.Spec.RobotID)
+	projID := parseIntID(bd.Spec.ProjectID)
 
 	// Bind robot to service account
 	// TODO: may cause dirty robots at the harbor project side
@@ -134,7 +134,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.
 	_, ok := bd.Annotations[consts.AnnotationRobotSecretRef]
 	if !ok {
 		// Need to create a new one as we only have one time to get the robot token
-		robot, err := r.Harbor.GetRobotAccount(projID, robotID)
+		robot, err := r.Harbor.CreateRobotAccount(fmt.Sprintf("%d", projID))
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("create robot account error: %w", err)
 		}
@@ -336,8 +336,14 @@ func (r *Reconciler) createRegSec(ctx context.Context, namespace string, registr
 			datakey: encoded,
 		},
 	}
+	err := r.Client.Get(ctx, types.NamespacedName{Name: regSec.Name, Namespace: regSec.Namespace}, &corev1.Secret{})
+	if err != nil && apierr.IsNotFound(err) {
+		return regSec, r.Client.Create(ctx, regSec, &client.CreateOptions{})
+	} else if err != nil {
+		return nil, err
+	}
 
-	return regSec, r.Client.Create(ctx, regSec, &client.CreateOptions{})
+	return regSec, r.Client.Update(ctx, regSec, &client.UpdateOptions{})
 }
 
 func (r *Reconciler) deleteExternalResources(bd *goharborv1.PullSecretBinding) error {
